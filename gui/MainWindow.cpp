@@ -31,6 +31,7 @@ This program is free software; you can redistribute it and/or modify
 #include <QTabWidget>
 #include <QLabel>
 #include <QFile>
+#include <QFileInfo>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QCloseEvent>
@@ -589,20 +590,31 @@ void MainWindow::open(const QString &_fileName)
         if (fileName.isEmpty())
             return;
     }
-
-    QFile file(fileName);
-    if (! file.open(QIODevice::ReadOnly))
+    
+    QFileInfo fileInfo(fileName);
+   
+    QStringList nameFilter;
+    nameFilter << "*.c" << "*.ino" << "*.cpp" << "*.h";
+    QList<QFileInfo> fileList = fileInfo.absoluteDir().entryInfoList(nameFilter);
+    
+    QList<QFileInfo>::iterator i;
+    for (i = fileList.begin(); i != fileList.end(); ++i)
     {
-        QMessageBox::warning(this, tr("Open error"), tr("The file could not be opened for reading."));
-        return;
+      QString fileName = (*i).absoluteFilePath();
+    	  
+      QFile file(fileName);
+      if (! file.open(QIODevice::ReadOnly))
+      {
+	  QMessageBox::warning(this, tr("Open error"), tr("The file could not be opened for reading."));
+	  return;
+      }
+      // create a new project and obtain the associated editor
+      Editor *editor;
+      newProject(QString::fromLocal8Bit(file.readAll()), createUniqueName(QFileInfo(fileName).fileName()), &editor);
+      editor->setFileName(fileName);
+      file.close();
     }
-
-    // create a new project and obtain the associated editor
-    Editor *editor;
-    newProject(QString::fromLocal8Bit(file.readAll()), createUniqueName(QFileInfo(fileName).fileName()), &editor);
-    editor->setFileName(fileName);
-    file.close();
-
+     
     // update the history
     ideApp->projectHistory()->updateHistory(fileName);
 }
